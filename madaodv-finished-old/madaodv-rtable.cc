@@ -275,39 +275,12 @@ RoutingTable::DeleteRoute (Ipv6Address dst)
 bool
 RoutingTable::AddRoute (RoutingTableEntry & rt)
 {
-  /* std::cout << "\n\nADDING ROUTE"<< std::endl;
-  std::cout << "Destination: " << rt.GetDestination() << std::endl;
-  std::cout << "Gateway: " << rt.GetRoute()->GetGateway() << std::endl;
-  std::cout << "Interface " << rt.GetInterface() << std::endl <<std::endl;*/
-
   NS_LOG_FUNCTION (this);
-  if (rt.GetInterface().GetAddress().IsLinkLocal())
-  {
-    std::cout << "Destination: " << rt.GetDestination() << std::endl;
-    std::cout << "Gateway: " << rt.GetRoute()->GetGateway() << std::endl;
-    std::cout << "Interface " << rt.GetInterface() << std::endl <<std::endl;
-  }
-  /*if (rt.GetInterface().GetAddress().IsLinkLocal())
-  {
-    std::cout << "not adding route for dst " << rt.GetDestination() << " becuase of interface " <<  rt.GetInterface().GetAddress() << std::endl;
-    return false;
-  }*/
-
   Purge ();
   if (rt.GetFlag () != IN_SEARCH)
     {
       rt.SetRreqCnt (0);
     }
-  
- /* RoutingTableEntry entry;
-  if (LookupRoute(rt.GetDestination(), entry))
-  {
-    if (entry.GetInterface().GetAddress().IsLinkLocal())
-    {
-      std::cout << "here" << std::endl;
-    }
-  }*/
-
   std::pair<std::map<Ipv6Address, RoutingTableEntry>::iterator, bool> result =
     m_ipv6AddressEntry.insert (std::make_pair (rt.GetDestination (), rt));
   return result.second;
@@ -316,11 +289,6 @@ RoutingTable::AddRoute (RoutingTableEntry & rt)
 bool
 RoutingTable::Update (RoutingTableEntry & rt)
 {
- /* std::cout << "\n\nUPDATING ROUTE"<< std::endl;
-  std::cout << "Destination: " << rt.GetDestination() << std::endl;
-  std::cout << "Gateway: " << rt.GetRoute()->GetGateway() << std::endl;
-  std::cout << "Interface " << rt.GetInterface() << std::endl <<std::endl;*/
-
   NS_LOG_FUNCTION (this);
   std::map<Ipv6Address, RoutingTableEntry>::iterator i =
     m_ipv6AddressEntry.find (rt.GetDestination ());

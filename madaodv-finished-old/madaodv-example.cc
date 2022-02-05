@@ -115,14 +115,17 @@ private:
 int main (int argc, char **argv)
 {
   MadaodvExample test;
- // LogComponentEnable("Ping6Application", LOG_LEVEL_ALL);
+  //LogComponentEnable("Ping6Application", LOG_LEVEL_ALL);
   //LogComponentEnable("Ipv6AddressHelper", LOG_LEVEL_ALL);
- // LogComponentEnable("MadaodvRoutingProtocol", LOG_LEVEL_ALL);
+  LogComponentEnable("MadaodvRoutingProtocol", LOG_LEVEL_ALL);
 //  LogComponentEnable("UdpSocketImpl", LOG_LEVEL_ALL);
   
  // LogComponentEnable("Ipv6L3Protocol", LOG_LEVEL_ALL);
+  //LogComponentEnable("NetDevice", LOG_LEVEL_ALL);
+//  LogComponentEnable("Ipv6Interface", LOG_LEVEL_ALL);
+
   //LogComponentEnable("UdpL4Protocol", LOG_LEVEL_ALL);
-  //LogComponentEnable("Ipv6EndPointDemux", LOG_LEVEL_ALL);
+ // LogComponentEnable("Ipv6EndPointDemux", LOG_LEVEL_ALL);
   
   if (!test.Configure (argc, argv))
     NS_FATAL_ERROR ("Configuration failed. Aborted.");
@@ -239,7 +242,7 @@ MadaodvExample::InstallInternetStack ()
 
 
   //Print out all addresses on node.
- /* for (uint32_t i = 0; i < nodes.GetN(); i++) {
+  for (uint32_t i = 0; i < nodes.GetN(); i++) {
     std::cout << std::endl;
 
     Ptr<Node> node = nodes.Get(i);
@@ -254,7 +257,7 @@ MadaodvExample::InstallInternetStack ()
   }
 
   //Print all devices
-  
+ /* 
   for (uint32_t i = 0; i < nodes.GetN(); i++) {
     std::cout << std::endl;
     Ptr<Node> node = nodes.Get(i);
@@ -269,12 +272,12 @@ MadaodvExample::InstallInternetStack ()
     }
 
     std::cout << std::endl;
-  }
+  }*/
 
   //Print Wifi Devices
   for (uint32_t i = 0; i < devices.GetN(); i++) {
-    std::cout << "Wifi Device " << i << ": " << devices.Get(i) << std::endl;
-  }*/
+    std::cout << "Wifi Device " << i << ": " << devices.Get(i)->GetAddress() << std::endl;
+  }
 
   //Print Positions
  /* for (uint32_t i = 0; i < nodes.GetN(); i++) {
@@ -297,7 +300,7 @@ MadaodvExample::InstallApplications ()
 {
   Ping6Helper ping; //interfaces.GetAddress (size - 1)
   //ping.SetAttribute ("Verbose", BooleanValue (true));
-  std::cout << "Target Address: " << interfaces.GetAddress (size - 1, 1) << std::endl << std::endl;
+  std::cout << "Target Address: " << interfaces.GetAddress (size - 1, 1) << std::endl; //
   ping.SetRemote(interfaces.GetAddress (size - 1, 1));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
