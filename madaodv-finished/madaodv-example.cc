@@ -110,12 +110,16 @@ private:
   void InstallInternetStack ();
   /// Create the simulation applications
   void InstallApplications ();
+
+  void LetsSend ();
 };
 
 int main (int argc, char **argv)
 {
   MadaodvExample test;
- // LogComponentEnable("Ping6Application", LOG_LEVEL_ALL);
+  //LogComponentEnable("WifiNetDevice", LOG_LEVEL_ALL);
+  //LogComponentEnable("TrafficControlLayer", LOG_LEVEL_ALL);
+  LogComponentEnable("Ping6Application", LOG_LEVEL_ALL);
   //LogComponentEnable("Ipv6AddressHelper", LOG_LEVEL_ALL);
  // LogComponentEnable("MadaodvRoutingProtocol", LOG_LEVEL_ALL);
 //  LogComponentEnable("UdpSocketImpl", LOG_LEVEL_ALL);
@@ -236,6 +240,10 @@ MadaodvExample::InstallInternetStack ()
   Ipv6AddressHelper address;
  // address.SetBase (Ipv6Address("fdf0:7afc:7273:42d5::"), Ipv6Prefix("ffff:ffff:ffff:ffff::"));
   interfaces = address.Assign (devices);
+  for (Ipv6InterfaceContainer::Iterator i = interfaces.Begin(); i != interfaces.End(); i++)
+  {
+    i->first->SetForwarding(i->second, true);
+  }
 
 
   //Print out all addresses on node.
@@ -292,21 +300,48 @@ MadaodvExample::InstallInternetStack ()
     }
 }
 
+void 
+MadaodvExample::LetsSend ()
+{
+  Ptr<Node> node = nodes.Get(3);
+  Ptr<Ipv6L3Protocol> ipv6 = node->GetObject<Ipv6L3Protocol> ();
+
+  Ptr<Packet> packet = Create<Packet> ();
+  UdpHeader hdr;
+  packet->AddHeader (hdr);;
+
+  Ipv6Address from ("2001:db8::200:ff:fe00:4");
+  Ipv6Address to ("2001:db8::200:ff:fe00:5");
+  Ipv6Route rt;
+  rt.SetDestination(to);
+  rt.SetSource(from);
+  rt.SetGateway(to);
+  rt.SetOutputDevice(devices.Get(3));
+
+  Ptr<Ipv6Route> ptr (&rt);
+
+  std::cout << "\n\nsletssend packet\n\n" << std::endl;
+  ipv6->Send(packet, from, to, 17, ptr);
+}
+
 void
 MadaodvExample::InstallApplications ()
 {
+  
   Ping6Helper ping; //interfaces.GetAddress (size - 1)
   //ping.SetAttribute ("Verbose", BooleanValue (true));
   std::cout << "Target Address: " << interfaces.GetAddress (size - 1, 1) << std::endl << std::endl;
   ping.SetRemote(interfaces.GetAddress (size - 1, 1));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
+
   p.Start (Seconds (0));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
+ // ipv6->Send(packet, from, to, 17, ptr);
+ // Simulator::Schedule (Seconds (1.5), &MadaodvExample::LetsSend, this);
   // move node away
  // Ptr<Node> node = nodes.Get (size/2);
   //Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
   //Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
 }
-

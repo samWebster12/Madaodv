@@ -310,10 +310,10 @@ RoutingProtocol::GetTypeId (void)
 void 
 RoutingProtocol::NotifyAddRoute	(Ipv6Address dst, Ipv6Prefix mask, Ipv6Address nextHop, uint32_t i, Ipv6Address prefixToUse)
 {
- // //std::cout << "dst: " << dst << "\t\tnextHop: " << nextHop << "\t\tinterface: " << m_ipv6->GetAddress (i, 0).GetAddress () << std::endl;
+ // std::cout << "dst: " << dst << "\t\tnextHop: " << nextHop << "\t\tinterface: " << m_ipv6->GetAddress (i, 0).GetAddress () << std::endl;
  /* if (m_ipv6->GetAddress (i, 0).GetAddress ().IsLinkLocal())
   {
-    //std::cout << "deleteallroutes" << std::endl;
+    std::cout << "deleteallroutes" << std::endl;
     m_routingTable.DeleteAllRoutesFromInterface(m_ipv6->GetAddress (i, 0));
   }*/
  NS_LOG_INFO (this << dst << mask << nextHop << i << prefixToUse);
@@ -403,7 +403,7 @@ RoutingProtocol::Start ()
   //Print all interface addresses
   /*
   for (auto it = m_socketAddresses.begin(); it != m_socketAddresses.end(); ++it) {
-    //std::cout << "Socket Address: " << it->second << std::endl;
+    std::cout << "Socket Address: " << it->second << std::endl;
   }*/
   //Assign node ipv6 address corresponding to mac address
 
@@ -446,7 +446,7 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv6Header &header,
   RoutingTableEntry rt;
 
   Ptr<Node> node = m_ipv6->GetObject<Node> ();
-  //std::cout << "[node " << node->GetId() << "] searching for destination " << dst << " in routing table: ";
+  //std::cout << "[node " << node->GetId() << "] " << Simulator::Now() << "\tsearching for destination " << dst << " in routing table: ";
   if (m_routingTable.LookupValidRoute (dst, rt))
     {
       //std::cout << "SUCCESSFUL" << std::endl;
@@ -507,6 +507,9 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv6Header &header,
                              Ptr<const NetDevice> idev, UnicastForwardCallback ucb,
                              MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb)
 {
+  Ptr<Node> node = m_ipv6->GetObject<Node> ();
+  //std::cout << "[node " << node->GetId() << "] routeinput from " << header.GetSourceAddress() << " to " << header.GetDestinationAddress() << std::endl;
+
   NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestinationAddress () << idev->GetAddress () << header.GetSourceAddress() << Simulator::Now().GetSeconds());
   if (m_socketAddresses.empty ())
     {
@@ -544,7 +547,6 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv6Header &header,
     {
       return false;
     }
-
   // Broadcast local delivery/forwarding
   for (std::map<Ptr<Socket>, Ipv6InterfaceAddress>::const_iterator j =
          m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
@@ -610,6 +612,7 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv6Header &header,
     }
 
   // Unicast local delivery
+  
   bool isDestAddr = false;
   for (uint8_t i = 0; i < m_ipv6->GetNAddresses(iif); i++) 
   {
@@ -619,7 +622,6 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv6Header &header,
       break;
     }
   }
-
   if (isDestAddr)
     {
       UpdateRouteLifeTime (origin, m_activeRouteTimeout);
@@ -658,6 +660,7 @@ bool
 RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv6Header & header,
                              UnicastForwardCallback ucb, ErrorCallback ecb)
 {
+ 
   NS_LOG_FUNCTION (this);
   Ipv6Address dst = header.GetDestinationAddress ();
   Ipv6Address origin = header.GetSourceAddress ();
@@ -665,9 +668,11 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv6Header & header,
   RoutingTableEntry toDst;
   if (m_routingTable.LookupRoute (dst, toDst))
     {
+    
       if (toDst.GetFlag () == VALID)
         {
           Ptr<Ipv6Route> route = toDst.GetRoute ();
+         // std::cout << "\n\nRoute Found:\n Destination: " << route->GetDestination() << "\nSource: " << route->GetSource() << "\nGateway: " << route->GetGateway() << "\nOutput Device: " << route->GetOutputDevice()->GetAddress() << "\n\n" << std::endl;
           NS_LOG_LOGIC (route->GetSource () << " forwarding to " << dst << " from " << origin << " packet " << p->GetUid ());
 
           /*
@@ -690,7 +695,7 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv6Header & header,
 
           m_nb.Update (route->GetGateway (), m_activeRouteTimeout);
           m_nb.Update (toOrigin.GetNextHop (), m_activeRouteTimeout);
-
+          //std::cout << "calling ucb" << std::endl;
           ucb (route->GetOutputDevice(), route, p, header);
           return true;
         }
@@ -721,7 +726,7 @@ RoutingProtocol::SetIpv6 (Ptr<Ipv6> ipv6)
   // Create lo route. It is asserted that the only one interface up for now is loopback
   NS_ASSERT (m_ipv6->GetNInterfaces () == 1 && m_ipv6->GetAddress (0, 0).GetAddress () == Ipv6Address::GetLoopback ());
   m_lo = m_ipv6->GetNetDevice (0);
- // //std::cout << "Loopback Route: " << m_lo << std::endl;
+ // std::cout << "Loopback Route: " << m_lo << std::endl;
   NS_ASSERT (m_lo != 0);
   // Remember lo route
   RoutingTableEntry rt (/*device=*/ m_lo, /*dst=*/ Ipv6Address::GetLoopback (), /*know seqno=*/ true, /*seqno=*/ 0,
@@ -752,7 +757,7 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
 
   /*if (iface.GetAddress() != MacToIpv6 (macAddr)) mark
     {
-      //std::cout << "test" << std::endl;
+      std::cout << "test" << std::endl;
       return;
     }*/
     if (iface.GetAddress () == Ipv6Address::GetLoopback () || iface.GetAddress().IsLinkLocal()) 
@@ -761,7 +766,7 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
     }
 
 
- // //std::cout << "here" << std::endl;
+ // std::cout << "here" << std::endl;
   // Create a socket to listen only on this interface
   Ptr<Socket> socket = Socket::CreateSocket (GetObject<Node> (),
                                              UdpSocketFactory::GetTypeId ());
@@ -862,7 +867,7 @@ RoutingProtocol::NotifyInterfaceDown (uint32_t i)
 void
 RoutingProtocol::NotifyAddAddress (uint32_t i, Ipv6InterfaceAddress address)
 {
- // //std::cout << "adding address " << address.GetAddress() << std::endl; 
+ // std::cout << "adding address " << address.GetAddress() << std::endl; 
   NS_LOG_FUNCTION (this << " interface " << i << " address " << address);
   Ptr<Ipv6L3Protocol> l3 = m_ipv6->GetObject<Ipv6L3Protocol> ();
   if (!l3->IsUp (i))
@@ -1053,7 +1058,7 @@ RoutingProtocol::LoopbackRoute (const Ipv6Header & hdr, Ptr<NetDevice> oif) cons
     {
       rt->SetSource (j->second.GetAddress ());
     }
-  ////std::cout << "valid source: " << rt->GetSource() << std::endl; //mark
+  //std::cout << "valid source: " << rt->GetSource() << std::endl; //mark
   NS_ASSERT_MSG (rt->GetSource () != Ipv6Address (), "Valid MADAODV source address not found");
   rt->SetGateway (Ipv6Address::GetLoopback ());
   rt->SetOutputDevice (m_lo); 
@@ -1277,10 +1282,10 @@ RoutingProtocol::RecvAodv (Ptr<Socket> socket)
 
  /* Ptr<Ipv6Interface> iface = ipv6->GetInterface(ipv6->GetInterfaceForAddress (receiver));
   Ptr<NdiscCache> discCache = iface->GetNdiscCache();
-  //std::cout << "right above" << std::endl;
+  std::cout << "right above" << std::endl;
   if (!discCache->Lookup(sender))
   {
-    //std::cout << "adding mac address " << iface->GetDevice()->GetAddress() << " with ipv6 address " << sender << " to disc cache" << std::endl;
+    std::cout << "adding mac address " << iface->GetDevice()->GetAddress() << " with ipv6 address " << sender << " to disc cache" << std::endl;
     NdiscCache::Entry* entry = discCache->Add(sender);
     entry->SetMacAddress(iface->GetDevice()->GetAddress());
     entry->MarkReachable();
@@ -1342,7 +1347,7 @@ RoutingProtocol::UpdateRouteLifeTime (Ipv6Address addr, Time lifetime)
 void
 RoutingProtocol::UpdateRouteToNeighbor (Ipv6Address sender, Ipv6Address receiver)
 {
- // //std::cout << "sender: " << sender << "\t\treceiver: " << receiver <<"\t\tinterface: " << m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), 1) << std::endl;
+ // std::cout << "sender: " << sender << "\t\treceiver: " << receiver <<"\t\tinterface: " << m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), 1) << std::endl;
   NS_LOG_FUNCTION (this << "sender " << sender << " receiver " << receiver);
   RoutingTableEntry toNeighbor;
   if (!m_routingTable.LookupRoute (sender, toNeighbor))
@@ -1463,7 +1468,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
       m_routingTable.Update (toOrigin);
       //m_nb.Update (src, Time (AllowedHelloLoss * HelloInterval));
     }
-//Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&//std::cout);
+//Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
     //  PrintRoutingTable (routingStream, Time::Unit::S);
   RoutingTableEntry toNeighbor;
   if (!m_routingTable.LookupRoute (src, toNeighbor))
@@ -1572,8 +1577,8 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
         }
       */
       
-      /*//std::cout << "\n\nRouting Table: " << std::endl;
-      Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&//std::cout);
+      /*std::cout << "\n\nRouting Table: " << std::endl;
+      Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
       PrintRoutingTable (routingStream, Time::Unit::S);*/
 
       destination = Ipv6Address(BROADCAST_ADDR);
@@ -1777,7 +1782,7 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address sen
           m_addressReqTimer.erase (dst);
         }
       m_routingTable.LookupRoute (dst, toDst);
-    //  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&//std::cout);
+    //  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
     //  PrintRoutingTable (routingStream, Time::Unit::S);
       SendPacketFromQueue (dst, toDst.GetRoute ());
       return;
@@ -2114,10 +2119,12 @@ RoutingProtocol::SendHello ()
 void
 RoutingProtocol::SendPacketFromQueue (Ipv6Address dst, Ptr<Ipv6Route> route)
 {
+  
   NS_LOG_FUNCTION (this);
   QueueEntry queueEntry;
   while (m_queue.Dequeue (dst, queueEntry))
     {
+     
       DeferredRouteOutputTag tag;
       Ptr<Packet> p = ConstCast<Packet> (queueEntry.GetPacket ());
       if (p->RemovePacketTag (tag)
@@ -2131,6 +2138,7 @@ RoutingProtocol::SendPacketFromQueue (Ipv6Address dst, Ptr<Ipv6Route> route)
       Ipv6Header header = queueEntry.GetIpv6Header ();
       header.SetSourceAddress (route->GetSource ());
       header.SetHopLimit (header.GetHopLimit () + 1); // compensate extra TTL decrement by fake loopback routing
+      
       ucb (route->GetOutputDevice(), route, p, header);
     }
 }
@@ -2301,7 +2309,7 @@ RoutingProtocol::SendRerrMessage (Ptr<Packet> packet, std::vector<Ipv6Address> p
       Ptr<Socket> socket = FindSocketWithInterfaceAddress (*i);
       NS_ASSERT (socket);
       NS_LOG_LOGIC ("Broadcast RERR message from interface " << i->GetAddress ());
-      // //std::cout << "Broadcast RERR message from interface " << i->GetAddress () << std::endl;
+      // std::cout << "Broadcast RERR message from interface " << i->GetAddress () << std::endl;
       // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
       Ptr<Packet> p = packet->Copy ();
       Ipv6Address destination;
