@@ -184,6 +184,24 @@ public:
   }
 
   /**
+   * Set whether we are an access point
+   * \param f whether we are access point
+   */
+  void SetAmAccessPoint (bool f)
+  {
+    m_amAccessPoint = f;
+  }
+  /**
+   * Get whether we are an access point
+   * \returns whether we are access point
+   */
+  bool GetAmAccessPoint () const
+  {
+    return m_amAccessPoint;
+  }
+
+
+  /**
    * Assign a fixed random variable stream number to the random variables
    * used by this model.  Return the number of streams (possibly zero) that
    * have been assigned.
@@ -274,14 +292,6 @@ private:
 private:
   /// Start protocol operation
   void Start ();
-  /**
-   * Queue packet and send route request
-   *
-   * \param p the packet to route
-   * \param header the IP header
-   * \param ucb the UnicastForwardCallback function
-   * \param ecb the ErrorCallback function
-   */ 
 
   /**
    * Convert ipv6 to mac address
@@ -299,7 +309,25 @@ private:
    */ 
   Ipv6Address MacToIpv6 (Mac48Address macAddr);
 
+  /**
+   * Convert mac to ipv6 address
+   *
+   * \param addr the ipv6 address
+   * \returns whether addr is an internet address (not part of our address range)
+   */ 
+   bool OnInternet(Ipv6Address addr);
+
+
+  /**
+   * Queue packet and send route request
+   *
+   * \param p the packet to route
+   * \param header the IP header
+   * \param ucb the UnicastForwardCallback function
+   * \param ecb the ErrorCallback function
+   */ 
   void DeferredRouteOutput (Ptr<const Packet> p, const Ipv6Header & header, UnicastForwardCallback ucb, ErrorCallback ecb);
+
   /**
    * If route exists and is valid, forward packet.
    *
@@ -402,6 +430,11 @@ private:
 
   ///\name Send
   //\{
+  /** Forward packets waiting for an accesspoint from route request queue to an access point
+   * \param route route to access point
+   */
+  void SendApPacketsFromQueue (Ptr<Ipv6Route> route);
+
   /** Forward packet from route request queue
    * \param dst destination address
    * \param route route to use
@@ -481,10 +514,25 @@ private:
    */
   void AckTimerExpire (Ipv6Address neighbor, Time blacklistTimeout);
 
+  /**
+   * Determine whether address in range 100:0:0:0:0:*:*:* (100::/48)
+   *
+   * \param addr the Ipv6Address to test
+   * \return true if addr is in range, false otherwise
+   */
+  bool InRange (Ipv6Address addr);
+
+
   /// Provides uniform random variables.
   Ptr<UniformRandomVariable> m_uniformRandomVariable;
   /// Keep track of the last bcast time
   Time m_lastBcastTime;
+
+  //whether we are an access point
+  bool m_amAccessPoint;
+
+  //our address corresponding to our mac address
+  Ipv6Address m_address;
 };
 
 } //namespace aodv

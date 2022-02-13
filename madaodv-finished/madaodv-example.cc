@@ -31,6 +31,7 @@
 #include "madaodv-rqueue.h"
 #include "madaodv-rtable.h"
 #include "madaodv-helper.h"
+#include "madaodv-routing-protocol.h"
 
 
 #include "ns3/core-module.h"
@@ -111,7 +112,7 @@ private:
   /// Create the simulation applications
   void InstallApplications ();
 
-  void LetsSend ();
+  void LetsSendDirectIpv6 ();
 };
 
 int main (int argc, char **argv)
@@ -301,17 +302,17 @@ MadaodvExample::InstallInternetStack ()
 }
 
 void 
-MadaodvExample::LetsSend ()
+MadaodvExample::LetsSendDirectIpv6 ()
 {
-  Ptr<Node> node = nodes.Get(3);
+  Ptr<Node> node = nodes.Get(0);
   Ptr<Ipv6L3Protocol> ipv6 = node->GetObject<Ipv6L3Protocol> ();
 
   Ptr<Packet> packet = Create<Packet> ();
   UdpHeader hdr;
   packet->AddHeader (hdr);;
 
-  Ipv6Address from ("2001:db8::200:ff:fe00:4");
-  Ipv6Address to ("2001:db8::200:ff:fe00:5");
+  Ipv6Address from ("2001:db8::200:ff:fe00:1");
+  Ipv6Address to ("fd34:1b20:6cd5:54b1::9");
   Ipv6Route rt;
   rt.SetDestination(to);
   rt.SetSource(from);
@@ -321,7 +322,7 @@ MadaodvExample::LetsSend ()
   Ptr<Ipv6Route> ptr (&rt);
 
   std::cout << "\n\nsletssend packet\n\n" << std::endl;
-  ipv6->Send(packet, from, to, 17, ptr);
+  ipv6->Send(packet, from, to, 17, ptr); //17 is ipv6 proto #
 }
 
 void
@@ -331,15 +332,16 @@ MadaodvExample::InstallApplications ()
   Ping6Helper ping; //interfaces.GetAddress (size - 1)
   //ping.SetAttribute ("Verbose", BooleanValue (true));
   std::cout << "Target Address: " << interfaces.GetAddress (size - 1, 1) << std::endl << std::endl;
-  ping.SetRemote(interfaces.GetAddress (size - 1, 1));
-
+ // ping.SetRemote(interfaces.GetAddress (size - 1, 1));
+  ping.SetRemote(Ipv6Address("fd34:1b20:6cd5:54b1::9"));
+  ping.SetAttribute("Interval", StringValue("30s"));
   ApplicationContainer p = ping.Install (nodes.Get (0));
 
   p.Start (Seconds (0));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
  // ipv6->Send(packet, from, to, 17, ptr);
- // Simulator::Schedule (Seconds (1.5), &MadaodvExample::LetsSend, this);
+  //Simulator::Schedule (Seconds (0.5), &MadaodvExample::LetsSend, this);
   // move node away
  // Ptr<Node> node = nodes.Get (size/2);
   //Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();

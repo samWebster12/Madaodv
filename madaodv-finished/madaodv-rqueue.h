@@ -234,11 +234,11 @@ public:
    */
   bool Dequeue (Ipv6Address dst, QueueEntry & entry);
   /**
-   * Return all entries waiting for an access point 
-   * \param entries QueueEntries waiting for an access point
-   * \returns whether one or more entries waiting for an access point exists
+   * Return an entry waiting for an access point 
+   * \param entry the entry
+   * \returns whether entry waiting for ap exists
    */
-  bool DequeueApQueries(std::vector<QueueEntry>& entries);
+  bool DequeueApQuery (QueueEntry& entry);
   /**
    * Remove all packets with destination IP address dst
    * \param dst the destination IP address

@@ -106,9 +106,22 @@ RequestQueue::Dequeue (Ipv6Address dst, QueueEntry & entry)
 }
 
 bool
-RequestQueue::DequeueApQueries (std::vector<QueueEntry>& entries)
+RequestQueue::DequeueApQuery (QueueEntry& entry)
 {
   Purge ();
+  for (std::vector<QueueEntry>::iterator i = m_queue.begin (); i != m_queue.end (); ++i)
+    {
+      if (i->GetNeedAccessPoint())
+        {
+          entry = *i;
+          m_queue.erase (i);
+          return true;
+        }
+    }
+  return false;
+
+
+ /* Purge ();
   bool foundEntry = false;
   for (std::vector<QueueEntry>::iterator i = m_queue.begin (); i != m_queue.end (); ++i)
     {
@@ -120,7 +133,7 @@ RequestQueue::DequeueApQueries (std::vector<QueueEntry>& entries)
           i--;
         }
     }
-  return foundEntry;
+  return foundEntry;*/
 }
 
 bool

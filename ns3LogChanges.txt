@@ -3,7 +3,7 @@ New Case (starting at line 900):
 /*
 if (destination.IsAllNodesMulticast)
 {
-    NS_LOG_LOGIC ("Ipv4L3Protocol::Send case AllNodesMulticast");
+    NS_LOG_LOGIC ("Ipv6222L3Protocol::Send case AllNodesMulticast");
     uint32_t ifaceIndex = 0;
     for (Ipv6InterfaceList::iterator ifaceIter = m_interfaces.begin ();
         ifaceIter != m_interfaces.end (); ifaceIter++, ifaceIndex++)
@@ -61,3 +61,6 @@ changed all m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), 0) to
 - Got rid of Icmpv6L4Protocol Handle RS method lines 452 to 458 (everything but first line)
 
 - If were using Documentation Addresses (2001:db8:: /32) then we need to remove first if statement of method IpForward in ipv6-l3-protocol.cc
+
+- Turn off DAD ./waf --run "madaodv --ns3::Icmpv6L4Protocol::DAD=false"
+- ***temporary*** commented out "Simulator::Schedule (Seconds (0.), &Icmpv6L4Protocol::FunctionDadTimeout, icmpv6, this, addr);" in Ipv6Interface::AddAddress (in else statement)

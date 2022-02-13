@@ -53,7 +53,8 @@ RoutingTableEntry::RoutingTableEntry (Ptr<NetDevice> dev, Ipv6Address dst, bool 
     m_flag (VALID),
     m_reqCount (0),
     m_blackListState (false),
-    m_blackListTimeout (Simulator::Now ())
+    m_blackListTimeout (Simulator::Now ()),
+    m_accessPoint(false)
 {
   m_ipv6Route = Create<Ipv6Route> ();
   m_ipv6Route->SetDestination (dst);
