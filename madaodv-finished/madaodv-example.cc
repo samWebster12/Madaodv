@@ -113,6 +113,8 @@ private:
   void InstallApplications ();
 
   void LetsSendDirectIpv6 ();
+
+  Ipv6Address GetCorrectIpv6Address (uint8_t i);
 };
 
 int main (int argc, char **argv)
@@ -230,6 +232,8 @@ MadaodvExample::CreateDevices ()
     }
 }
 
+
+
 void
 MadaodvExample::InstallInternetStack ()
 {
@@ -238,13 +242,27 @@ MadaodvExample::InstallInternetStack ()
   InternetStackHelper stack;
   stack.SetRoutingHelper (madaodv); // has effect on the next Install ()
   stack.Install (nodes);
-  Ipv6AddressHelper address;
+  Ipv6AddressHelper address (Ipv6Address("100::"), Ipv6Prefix (48));
+  std::cout << "mac addr: " << devices.Get(0)->GetAddress() << std::endl;
  // address.SetBase (Ipv6Address("fdf0:7afc:7273:42d5::"), Ipv6Prefix("ffff:ffff:ffff:ffff::"));
   interfaces = address.Assign (devices);
+
+
+  uint8_t j=0;
   for (Ipv6InterfaceContainer::Iterator i = interfaces.Begin(); i != interfaces.End(); i++)
   {
     i->first->SetForwarding(i->second, true);
+    
+
+    std::cout << "i: " << i->second << std::endl;
+    Ipv6Address addr = GetCorrectIpv6Address(j);
+    Ipv6InterfaceAddress ifaceAddr (addr);
+    i->first->AddAddress(i->second, ifaceAddr);
+
+    std::cout << "added address to " << ifaceAddr.GetAddress() << " to node " << (int) j << std::endl;
+    j++;
   }
+
 
 
   //Print out all addresses on node.
@@ -299,6 +317,30 @@ MadaodvExample::InstallInternetStack ()
       Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("madaodv.routes", std::ios::out); // ?
       madaodv.PrintRoutingTableAllAt (Seconds (8), routingStream);
     }
+}
+
+Ipv6Address
+MadaodvExample::GetCorrectIpv6Address (uint8_t i)
+{
+  Mac48Address macAddr = Mac48Address::ConvertFrom(devices.Get(i)->GetAddress());
+  uint8_t macBuffer[6];
+  macAddr.CopyTo(macBuffer);
+
+  uint8_t ipv6Buffer[16];
+  ipv6Buffer[0] = 1;
+  for (uint8_t i = 1; i < 10; i++)
+  {
+    ipv6Buffer[i] = 0;
+  }
+
+  for (uint8_t i = 10; i < 16; i++)
+  {
+    ipv6Buffer[i] = macBuffer[i-10];
+  }
+
+  Ipv6Address ipv6Addr;
+  ipv6Addr.Set (ipv6Buffer);
+  return ipv6Addr;
 }
 
 void 

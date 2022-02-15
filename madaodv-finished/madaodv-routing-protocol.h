@@ -522,6 +522,14 @@ private:
    */
   bool InRange (Ipv6Address addr);
 
+  /**
+   * Return which index of Ipv6Interface corresponds to addr
+   *
+   * \param addr the Ipv6Address 
+   * \return index or -1 if not found
+   */
+  int8_t GetIndexForAddress (uint8_t i, Ipv6Address addr);
+
 
   /// Provides uniform random variables.
   Ptr<UniformRandomVariable> m_uniformRandomVariable;
@@ -531,8 +539,8 @@ private:
   //whether we are an access point
   bool m_amAccessPoint;
 
-  //our address corresponding to our mac address
-  Ipv6Address m_address;
+  //fisrt uint8_t represents interface index, second represents address index
+  std::map<uint8_t, uint8_t> m_addresses;
 };
 
 } //namespace aodv
