@@ -951,8 +951,8 @@ RoutingProtocol::NotifyAddAddress (uint32_t i, Ipv6InterfaceAddress address)
   if (l3->GetNAddresses (i)) //mark for change later
     {
       Ptr<NetDevice> dev = l3->GetInterface(i)->GetDevice ();
-     // Address addr = dev->GetAddress();
-      //Mac48Address macAddr = Mac48Address::ConvertFrom(addr);
+      Address addr = dev->GetAddress();
+      Mac48Address macAddr = Mac48Address::ConvertFrom(addr);
 
       if (address.GetAddress() != MacToIpv6(macAddr)) // mark get rid of for testing
       {
@@ -1014,7 +1014,7 @@ RoutingProtocol::NotifyRemoveAddress (uint32_t i, Ipv6InterfaceAddress address)
 {
   return;
 
-  
+
   NS_LOG_FUNCTION (this);
   Ptr<Socket> socket = FindSocketWithInterfaceAddress (address);
   if (socket)

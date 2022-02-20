@@ -117,7 +117,7 @@ private:
   Ipv6Address GetCorrectIpv6Address (uint8_t i);
 };
 
-int main (int argc, char **argv)
+/*int main (int argc, char **argv)
 {
   MadaodvExample test;
   //LogComponentEnable("WifiNetDevice", LOG_LEVEL_ALL);
@@ -137,7 +137,7 @@ int main (int argc, char **argv)
   test.Run ();
   test.Report (std::cout);
   return 0;
-}
+}*/
 
 //-----------------------------------------------------------------------------
 MadaodvExample::MadaodvExample () :
