@@ -165,6 +165,8 @@ void Ping6::SetRouters (std::vector<Ipv6Address> routers)
 
 void Ping6::Send ()
 {
+  Ptr<Node> node = m_ipv6Protocol->GetObject<Node> ();
+  //std::cout << "[node " << node->GetId() << "] sending a ping" << std::endl;
   NS_LOG_FUNCTION (this);
   NS_ASSERT (m_sendEvent.IsExpired ());
 
@@ -249,6 +251,8 @@ void Ping6::Send ()
 void Ping6::HandleRead (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
+  Ptr<Node> node = m_ipv6Protocol->GetObject<Node> ();
+  //std::cout << "[node " << node->GetId() << "] handleread a ping" << std::endl;
 
   Ptr<Packet> packet=0;
   Address from;
@@ -256,6 +260,7 @@ void Ping6::HandleRead (Ptr<Socket> socket)
     {
       if (Inet6SocketAddress::IsMatchingType (from))
         {
+        
           Ipv6Header hdr;
           Icmpv6Echo reply (0);
           Icmpv6DestinationUnreachable destUnreach;

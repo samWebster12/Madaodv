@@ -226,14 +226,17 @@ Ipv6EndPointDemux::EndPoints Ipv6EndPointDemux::Lookup (Ipv6Address daddr, uint1
       NS_LOG_DEBUG ("dest addr " << daddr);
 
       bool localAddressMatchesWildCard = endP->GetLocalAddress () == Ipv6Address::GetAny ();
+      bool destAddressIsAllNodesMulticast = daddr.IsAllNodesMulticast();
       bool localAddressMatchesExact = endP->GetLocalAddress () == daddr;
       bool localAddressMatchesAllRouters = endP->GetLocalAddress () == Ipv6Address::GetAllRoutersMulticast ();
+      
 
       /* if no match here, keep looking */
-      if (!(localAddressMatchesExact || localAddressMatchesWildCard))
+      if (!(localAddressMatchesExact || localAddressMatchesWildCard || destAddressIsAllNodesMulticast))
         {
           continue;
         }
+      
       bool remotePeerMatchesExact = endP->GetPeerPort () == sport;
       bool remotePeerMatchesWildCard = endP->GetPeerPort () == 0;
       bool remoteAddressMatchesExact = endP->GetPeerAddress () == saddr;
@@ -251,7 +254,7 @@ Ipv6EndPointDemux::EndPoints Ipv6EndPointDemux::Lookup (Ipv6Address daddr, uint1
         }
 
       /* Now figure out which return list to add this one to */
-      if (localAddressMatchesWildCard
+      if ((localAddressMatchesWildCard || destAddressIsAllNodesMulticast)
           && remotePeerMatchesWildCard
           && remoteAddressMatchesWildCard)
         { /* Only local port matches exactly */

@@ -890,6 +890,42 @@ void Ipv6L3Protocol::Send (Ptr<Packet> packet, Ipv6Address source, Ipv6Address d
       SendRealOut (route, packet, hdr);
       return;
     }
+    
+   
+   /* My new case */
+   if (destination.IsAllNodesMulticast()) 
+   {
+      NS_LOG_LOGIC ("Ipv6L3Protocol::Send case AllNodesMulticast");
+      uint32_t ifaceIndex = 0;
+      for (Ipv6InterfaceList::iterator ifaceIter = m_interfaces.begin ();
+           ifaceIter != m_interfaces.end (); ifaceIter++, ifaceIndex++)
+        {
+          Ptr<Ipv6Interface> outInterface = *ifaceIter;
+          // ANY source matches any interface
+          bool sendIt = source.IsAny ();
+          // check if some specific address on outInterface matches
+          for (uint32_t index = 0; !sendIt && index < outInterface->GetNAddresses (); index++)
+            {
+              if (outInterface->GetAddress (index).GetAddress () == source)
+                {
+                  sendIt = true;
+                }
+            }
+
+          if (sendIt)
+            {
+              // create a proxy route for this interface
+              Ptr<Ipv6Route> route = Create<Ipv6Route> ();
+              route->SetDestination (destination);
+              route->SetGateway (Ipv6Address::GetAny ());
+              route->SetSource (source);
+              route->SetOutputDevice (outInterface->GetDevice ());
+              Send (packet, source, destination, protocol, route);
+            }
+        }
+      return;
+      
+   }
 
   /* 3) */
   NS_LOG_LOGIC ("Ipv6L3Protocol::Send case 3: passed in with no route " << destination);
@@ -926,7 +962,12 @@ void Ipv6L3Protocol::Send (Ptr<Packet> packet, Ipv6Address source, Ipv6Address d
 
 void Ipv6L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from, const Address &to, NetDevice::PacketType packetType)
 {
+  Ptr<Node> node = this->GetObject<Node> ();
+ // std::cout << "[node " << node->GetId() << "] ipv6 receive packet " << p->GetUid()  << "from " << from << " to "<< to << " protocol " << (int) protocol << std::endl;
+
+        
   NS_LOG_FUNCTION (this << device << p << protocol << from << to << packetType);
+
   NS_LOG_LOGIC ("Packet from " << from << " received on node " << m_node->GetId ());
 
   NS_ASSERT_MSG (GetInterfaceForDevice(device) != -1, "Received a packet from an interface that is not known to IPv6");
@@ -950,7 +991,11 @@ void Ipv6L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16
 
   Ipv6Header hdr;
   packet->RemoveHeader (hdr);
-
+  int proto = (int) hdr.GetNextHeader();
+  if (proto == 17)
+  {
+   //  std::cout << "\nIpv6 Receive Function from: " << from << ",\tto: " << to << std::endl;
+  }
   // Trim any residual frame padding from underlying devices
   if (hdr.GetPayloadLength () < packet->GetSize ())
     {
@@ -969,6 +1014,19 @@ void Ipv6L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16
         }
       else
         {
+          Ipv6Address src = hdr.GetSourceAddress();
+         
+          //lets now create a new entry
+          if (!(src.IsMulticast() || src.IsAny()))
+          {
+        //     std::cout << "\n\nadding new entry with ip address " << hdr.GetSourceAddress() << " and mac address " << from << std::endl;
+             NdiscCache::Entry* entry = ndiscCache->Add(hdr.GetSourceAddress ());
+             entry->SetMacAddress(from);
+             entry->MarkReachable();
+             entry->StartReachableTimer();
+          }
+          
+          
           // It's not in the direct routing, so it's the router, and it could have multiple IP addresses.
           // In doubt, update all of them.
           // Note: it's a confirmed behavior for Linux routers.
@@ -1029,6 +1087,7 @@ void Ipv6L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16
     }
   else if (hdr.GetDestinationAddress ().IsMulticast ())
     {
+    
       bool isSolicited = ipv6Interface->IsSolicitedMulticastAddress (hdr.GetDestinationAddress ());
       bool isRegisteredOnInterface = IsRegisteredMulticastAddress (hdr.GetDestinationAddress (), interface);
       bool isRegisteredGlobally = IsRegisteredMulticastAddress (hdr.GetDestinationAddress ());
@@ -1048,8 +1107,10 @@ void Ipv6L3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16
             {
               Ipv6InterfaceAddress iaddr = GetAddress (j, i);
               Ipv6Address addr = iaddr.GetAddress ();
+          //    std::cout << "checking " << addr << " against " << hdr.GetDestinationAddress () << std::endl;
               if (addr == hdr.GetDestinationAddress ())
                 {
+                
                   if (j == interface)
                     {
                       NS_LOG_LOGIC ("For me (destination " << addr << " match)");
@@ -1148,6 +1209,7 @@ void Ipv6L3Protocol::SendRealOut (Ptr<Ipv6Route> route, Ptr<Packet> packet, Ipv6
       ipv6Fragment->GetFragments (packet, ipHeader, targetMtu, fragments);
     }
 
+                 
   if (route->GetGateway () != Ipv6Address::GetAny ())
     {
       if (outInterface->IsUp ())
@@ -1208,16 +1270,19 @@ void Ipv6L3Protocol::SendRealOut (Ptr<Ipv6Route> route, Ptr<Packet> packet, Ipv6
 
 void Ipv6L3Protocol::IpForward (Ptr<const NetDevice> idev, Ptr<Ipv6Route> rtentry, Ptr<const Packet> p, const Ipv6Header& header)
 {
+  Ptr<Node> node = this->GetObject<Node> ();
+  std::cout << "[node " << node->GetId() << "] Forwarding ip packet to destination " << header.GetDestinationAddress() << " from source " << header.GetSourceAddress() << " through " << rtentry->GetGateway() << std::endl;
+ // std::cout << "ipforward idev: " << idev << "rtentry: " << rtentry << "\t\tHeader dest: " << header.GetDestinationAddress() << "\tsource: " << header.GetSourceAddress() << std::endl;
   NS_LOG_FUNCTION (this << rtentry << p << header);
   NS_LOG_LOGIC ("Forwarding logic for node: " << m_node->GetId ());
 
   // Drop RFC 3849 packets: 2001:db8::/32
-  if (header.GetDestinationAddress().IsDocumentation ())
+/*  if (header.GetDestinationAddress().IsDocumentation ())
     {
       NS_LOG_WARN ("Received a packet for 2001:db8::/32 (documentation class).  Drop.");
       m_dropTrace (header, p, DROP_ROUTE_ERROR, m_node->GetObject<Ipv6> (), 0);
       return;
-    }
+    }*/
 
   // Forwarding
   Ipv6Header ipHeader = header;
@@ -1407,9 +1472,7 @@ void Ipv6L3Protocol::LocalDeliver (Ptr<const Packet> packet, Ipv6Header const& i
               Ptr<Packet> copy = p->Copy ();
 
               m_localDeliverTrace (ip, p, iif);
-
               enum IpL4Protocol::RxStatus status = protocol->Receive (p, ip, GetInterface (iif));
-
               switch (status)
                 {
                 case IpL4Protocol::RX_OK:
@@ -1419,6 +1482,7 @@ void Ipv6L3Protocol::LocalDeliver (Ptr<const Packet> packet, Ipv6Header const& i
                 case IpL4Protocol::RX_ENDPOINT_CLOSED:
                   break;
                 case IpL4Protocol::RX_ENDPOINT_UNREACH:
+                
                   if (ip.GetDestinationAddress ().IsMulticast ())
                     {
                       /* do not rely on multicast address */

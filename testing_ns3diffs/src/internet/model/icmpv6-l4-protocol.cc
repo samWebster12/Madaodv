@@ -449,7 +449,7 @@ void Icmpv6L4Protocol::ReceiveLLA (Icmpv6OptionLinkLayerAddress lla, Ipv6Address
 void Icmpv6L4Protocol::HandleRS (Ptr<Packet> packet, Ipv6Address const &src, Ipv6Address const &dst, Ptr<Ipv6Interface> interface)
 {
   NS_LOG_FUNCTION (this << packet << src << dst << interface);
-  Ptr<Ipv6L3Protocol> ipv6 = m_node->GetObject<Ipv6L3Protocol> ();
+ /* Ptr<Ipv6L3Protocol> ipv6 = m_node->GetObject<Ipv6L3Protocol> ();
   Icmpv6RS rsHeader;
   packet->RemoveHeader (rsHeader);
   Address hardwareAddress;
@@ -458,10 +458,10 @@ void Icmpv6L4Protocol::HandleRS (Ptr<Packet> packet, Ipv6Address const &src, Ipv
   Ptr<NdiscCache> cache = FindCache (interface->GetDevice ());
 
   if (src != Ipv6Address::GetAny ())
-    {
+    {*/
       /* XXX search all options following the RS header */
       /* test if the next option is SourceLinkLayerAddress */
-      uint8_t type;
+  /*    uint8_t type;
       packet->CopyData (&type, sizeof(type));
 
       if (type != Icmpv6Header::ICMPV6_OPT_LINK_LAYER_SOURCE)
@@ -482,7 +482,7 @@ void Icmpv6L4Protocol::HandleRS (Ptr<Packet> packet, Ipv6Address const &src, Ipv
         {
           entry->MarkStale (lla.GetAddress ());
         }
-    }
+    }*/
 }
 
 void Icmpv6L4Protocol::HandleNS (Ptr<Packet> packet, Ipv6Address const &src, Ipv6Address const &dst, Ptr<Ipv6Interface> interface)
@@ -1322,7 +1322,8 @@ Ptr<NdiscCache> Icmpv6L4Protocol::FindCache (Ptr<NetDevice> device)
         }
     }
 
-  NS_ASSERT_MSG (false, "Icmpv6L4Protocol can not find a NDIS Cache for device " << device);
+  Ptr<Node> node = this->GetObject<Node> ();
+  NS_ASSERT_MSG (false, "Icmpv6L4Protocol can not find a NDIS Cache for device " << device << " on node " << node->GetId());
   /* quiet compiler */
   return 0;
 }

@@ -226,7 +226,7 @@ bool Ipv6Interface::AddAddress (Ipv6InterfaceAddress iface)
                 }
               else
                 {
-                  Simulator::Schedule (Seconds (0.), &Icmpv6L4Protocol::FunctionDadTimeout, icmpv6, this, addr);
+               //   Simulator::Schedule (Seconds (0.), &Icmpv6L4Protocol::FunctionDadTimeout, icmpv6, this, addr);
                 }
             }
         }
@@ -428,6 +428,15 @@ void Ipv6Interface::Send (Ptr<Packet> p, const Ipv6Header & hdr, Ipv6Address des
       if (found)
         {
           NS_LOG_LOGIC ("Address Resolved.  Send.");
+        //  std::cout << "Hardware address found: " << hardwareDestination << std::endl;
+        /*  std::unordered_map<Ipv6Address, NdiscCache::Entry*, Ipv6AddressHash> cache;
+          cache = m_ndCache->GetCache();
+          std::unordered_map<Ipv6Address, NdiscCache::Entry*, Ipv6AddressHash>::iterator i;
+          for (i = cache.begin(); i != cache.end(); i++) 
+          {
+             std::cout << *(i->second) << std::endl;
+          }*/
+        //  std::cout << "sending ip packet " << (int) p->GetUid() << " from " << hdr.GetSourceAddress() << " to " << hdr.GetDestinationAddress() << " through " << m_device << " to " << hardwareDestination << " at time " << Simulator::Now () << std::endl;
           m_tc->Send (m_device, Create<Ipv6QueueDiscItem> (p, hardwareDestination, Ipv6L3Protocol::PROT_NUMBER, hdr));
         }
     }

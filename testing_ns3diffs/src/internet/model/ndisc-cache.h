@@ -115,6 +115,11 @@ public:
    * \brief Flush the cache.
    */
   void Flush ();
+  
+  std::unordered_map<Ipv6Address, NdiscCache::Entry*, Ipv6AddressHash>  GetCache (void)
+  {
+     return m_ndCache;
+  }
 
   /**
    * \brief Set the max number of waiting packet.

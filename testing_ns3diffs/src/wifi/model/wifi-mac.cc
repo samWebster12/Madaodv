@@ -1,3 +1,4 @@
+
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2008 INRIA
@@ -17,6 +18,7 @@
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
+
 
 #include "ns3/log.h"
 #include "ns3/packet.h"
@@ -127,7 +129,7 @@ void
 WifiMac::ConfigureDcf (Ptr<Txop> dcf, uint32_t cwmin, uint32_t cwmax, bool isDsss, AcIndex ac)
 {
   NS_LOG_FUNCTION (this << dcf << cwmin << cwmax << isDsss << ac);
-  /* see IEEE 802.11 section 7.3.2.29 */
+ //  see IEEE 802.11 section 7.3.2.29 
   switch (ac)
     {
     case AC_VO:
