@@ -44,7 +44,7 @@ int main(int argc, char **argv)
   // Name nonwifinodes
   /*for (uint32_t i = 0; i < 10; ++i)
     {
-      std::ostringstream os;
+      std::ostringstream os
       os << "node-" << i;
       Names::Add (os.str (), nonwifinodes.Get (i));
     }*/

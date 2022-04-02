@@ -32,6 +32,7 @@
 #include "madaodv-rtable.h"
 #include "madaodv-helper.h"
 #include "madaodv-routing-protocol.h"
+#include "hybrid-wifi-mac.h"
 
 
 #include "ns3/core-module.h"
@@ -97,8 +98,10 @@ private:
   // network
   /// nodes used in the example
   NodeContainer nodes;
+  NodeContainer wifinode;
   /// devices used in the example
   NetDeviceContainer devices;
+  NetDeviceContainer wifidevice;
   /// interfaces used in the example
   Ipv6InterfaceContainer interfaces;
 
@@ -117,12 +120,14 @@ private:
   Ipv6Address GetCorrectIpv6Address (uint8_t i);
 };
 
-/*int main (int argc, char **argv)
+int main (int argc, char **argv)
 {
   MadaodvExample test;
   //LogComponentEnable("WifiNetDevice", LOG_LEVEL_ALL);
   //LogComponentEnable("TrafficControlLayer", LOG_LEVEL_ALL);
   LogComponentEnable("Ping6Application", LOG_LEVEL_ALL);
+ // LogComponentEnable("HybridWifiMac", LOG_LEVEL_INFO);
+ // LogComponentEnable("ApWifiMac", LOG_LEVEL_INFO);
   //LogComponentEnable("Ipv6AddressHelper", LOG_LEVEL_ALL);
  // LogComponentEnable("MadaodvRoutingProtocol", LOG_LEVEL_ALL);
 //  LogComponentEnable("UdpSocketImpl", LOG_LEVEL_ALL);
@@ -137,7 +142,7 @@ private:
   test.Run ();
   test.Report (std::cout);
   return 0;
-}*/
+}
 
 //-----------------------------------------------------------------------------
 MadaodvExample::MadaodvExample () :
@@ -193,7 +198,8 @@ void
 MadaodvExample::CreateNodes ()
 {
   std::cout << "Creating " << (unsigned)size << " nodes " << step << " m apart.\n";
-  nodes.Create (size);
+  nodes.Create (size-1);
+  wifinode.Create(1);
   // Name nodes
   for (uint32_t i = 0; i < size; ++i)
     {
@@ -212,19 +218,26 @@ MadaodvExample::CreateNodes ()
                                  "LayoutType", StringValue ("RowFirst"));
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (nodes);
+
+  mobility.Install (wifinode); 
 }
 
 void
 MadaodvExample::CreateDevices ()
 {
   WifiMacHelper wifiMac;
-  wifiMac.SetType ("ns3::AdhocWifiMac");
+  wifiMac.SetType ("ns3::HybridWifiMac");
   YansWifiPhyHelper wifiPhy;
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
   wifiPhy.SetChannel (wifiChannel.Create ());
   WifiHelper wifi;
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("OfdmRate6Mbps"), "RtsCtsThreshold", UintegerValue (0));
   devices = wifi.Install (wifiPhy, wifiMac, nodes); 
+
+  wifiMac.SetType("ns3::ApWifiMac");
+  wifidevice = wifi.Install (wifiPhy, wifiMac, wifinode);
+
+  
 
   if (pcap)
     {
@@ -237,30 +250,38 @@ MadaodvExample::CreateDevices ()
 void
 MadaodvExample::InstallInternetStack ()
 {
+  NodeContainer allnodes;
+  allnodes.Add(nodes);
+  allnodes.Add(wifinode);
+
+  NetDeviceContainer alldevs;
+  alldevs.Add(devices);
+  alldevs.Add(wifidevice);
+
   MadaodvHelper madaodv;
   // you can configure AODV attributes here using aodv.Set(name, value)
   InternetStackHelper stack;
   stack.SetRoutingHelper (madaodv); // has effect on the next Install ()
-  stack.Install (nodes);
+  stack.Install (allnodes); //nodes
   Ipv6AddressHelper address (Ipv6Address("100::"), Ipv6Prefix (48));
   std::cout << "mac addr: " << devices.Get(0)->GetAddress() << std::endl;
  // address.SetBase (Ipv6Address("fdf0:7afc:7273:42d5::"), Ipv6Prefix("ffff:ffff:ffff:ffff::"));
-  interfaces = address.Assign (devices);
+  interfaces = address.Assign (alldevs);
 
 
-  uint8_t j=0;
+  //uint8_t j=0;
   for (Ipv6InterfaceContainer::Iterator i = interfaces.Begin(); i != interfaces.End(); i++)
   {
     i->first->SetForwarding(i->second, true);
     
 
     std::cout << "i: " << i->second << std::endl;
-    Ipv6Address addr = GetCorrectIpv6Address(j);
-    Ipv6InterfaceAddress ifaceAddr (addr);
-    i->first->AddAddress(i->second, ifaceAddr);
+    //Ipv6Address addr = GetCorrectIpv6Address(j);
+   // Ipv6InterfaceAddress ifaceAddr (addr);
+    //i->first->AddAddress(i->second, ifaceAddr);
 
-    std::cout << "added address to " << ifaceAddr.GetAddress() << " to node " << (int) j << std::endl;
-    j++;
+   // std::cout << "added address to " << ifaceAddr.GetAddress() << " to node " << (int) j << std::endl;
+    //j++;
   }
 
 
@@ -375,8 +396,8 @@ MadaodvExample::InstallApplications ()
   //ping.SetAttribute ("Verbose", BooleanValue (true));
   std::cout << "Target Address: " << interfaces.GetAddress (size - 1, 1) << std::endl << std::endl;
  // ping.SetRemote(interfaces.GetAddress (size - 1, 1));
-  ping.SetRemote(Ipv6Address("fd34:1b20:6cd5:54b1::9"));
-  ping.SetAttribute("Interval", StringValue("30s"));
+  ping.SetRemote(Ipv6Address("fd34:1b20:6cd5:54b1::9")); //fd34:1b20:6cd5:54b1::9
+  ping.SetAttribute("Interval", StringValue("1s"));
   ApplicationContainer p = ping.Install (nodes.Get (0));
 
   p.Start (Seconds (0));

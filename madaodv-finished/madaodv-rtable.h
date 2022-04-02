@@ -503,11 +503,13 @@ public:
   /// Delete all outdated entries and invalidate valid entry if Lifetime is expired
   void Purge ();
 
+  bool GetDestInSearchOfAp(RoutingTableEntry& entry);
+
   /** Retrieve active entries with destinations that are access points
    * \param entries - active entries with destinations that are access points
    * \return true if there are one or more entries
    */
-  bool ActiveApEntries(std::vector<RoutingTableEntry>& entries);
+  bool ActiveApEntries(RoutingTableEntry& entries);
 
   /** Mark entry as unidirectional (e.g. add this neighbor to "blacklist" for blacklistTimeout period)
    * \param neighbor - neighbor address link to which assumed to be unidirectional

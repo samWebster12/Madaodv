@@ -1492,6 +1492,7 @@ HybridWifiMac::Enqueue (Ptr<Packet> packet, Mac48Address to)
 {
   //We have a problem here since we don't know whether to send to to using the access point or directly via adhoc mode...
   //So we do both
+  NS_LOG_ERROR("HYBRIDWIFIMAC ENQUEUE");
   Ptr<Packet> packetCopy = packet->Copy();
 
   // If were associated, send through ap
@@ -1658,7 +1659,8 @@ HybridWifiMac::Receive (Ptr<WifiMacQueueItem> mpdu)
   const WifiMacHeader* hdr = &mpdu->GetHeader ();
   Ptr<const Packet> packet = mpdu->GetPacket ();
   NS_ASSERT (!hdr->IsCtl ());
-  
+
+  //std::cout << "[" << GetAddress() << "] received packet from " << hdr->GetAddr3() <<  std::endl;
 
   if (hdr->IsProbeReq ()
            || hdr->IsAssocReq ()
@@ -1671,6 +1673,7 @@ HybridWifiMac::Receive (Ptr<WifiMacQueueItem> mpdu)
 
   else if (hdr->IsBeacon ())
     {
+      NS_LOG_ERROR("\nBeaconReceived\n");
       NS_LOG_DEBUG ("Beacon received");
       MgtBeaconHeader beacon;
       Ptr<Packet> copy = packet->Copy ();
@@ -1802,9 +1805,9 @@ HybridWifiMac::Receive (Ptr<WifiMacQueueItem> mpdu)
 
 
 
-
+  //std::cout << "[" << GetAddress() << "] received packet from " << hdr->GetAddr3() <<  std::endl;
   bool adhoc = (!hdr->IsFromDs() && !hdr->IsToDs());
-  NS_LOG_ERROR ("is packet adhoc: " << adhoc);
+  //NS_LOG_ERROR ("is packet adhoc: " << adhoc);
 
   if (adhoc && GetWifiRemoteStationManager ()->IsBrandNew (hdr->GetAddr2 ()))
     {
@@ -1833,6 +1836,7 @@ HybridWifiMac::Receive (Ptr<WifiMacQueueItem> mpdu)
       //adhoc mode
       if (adhoc)
         {
+          NS_LOG_ERROR("HYBRIDWIFIMAC IsData: receive adhoc");
           Mac48Address from = hdr->GetAddr2 ();
           Mac48Address to = hdr->GetAddr1 ();
           if (hdr->IsQosData () && hdr->IsQosAmsdu ())
@@ -1850,6 +1854,7 @@ HybridWifiMac::Receive (Ptr<WifiMacQueueItem> mpdu)
       //sta mode
       else
         {
+          NS_LOG_ERROR("HYBRIDWIFIMAC IsData: receive NOT adhoc");
           if (!IsAssociated ())
             {
               NS_LOG_LOGIC ("Received data frame while not associated: ignore");

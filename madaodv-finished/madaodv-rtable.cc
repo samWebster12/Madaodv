@@ -492,33 +492,71 @@ RoutingTable::Purge (std::map<Ipv6Address, RoutingTableEntry> &table) const
 }
 
 bool 
-RoutingTable::ActiveApEntries(std::vector<RoutingTableEntry>& entries)
+RoutingTable::GetDestInSearchOfAp(RoutingTableEntry& entry)
 {
+  
   NS_LOG_FUNCTION (this);
   if (m_ipv6AddressEntry.empty ())
     {
       return false;
     }
-  bool foundEntry = false;
+ // bool foundEntry = false;
   for (std::map<Ipv6Address, RoutingTableEntry>::iterator i =
          m_ipv6AddressEntry.begin (); i != m_ipv6AddressEntry.end (); )
     {
-      if (i->second.IsAccessPoint () && i->second.GetFlag() == VALID)
+      if (i->second.IsAccessPoint () && i->second.GetFlag() == IN_SEARCH)
         {
-          entries.push_back(i->second);
-          foundEntry = true;
-
-          std::map<Ipv6Address, RoutingTableEntry>::iterator tmp = i;
+          entry = i->second;
+          return true;
+        }
+        i++;
+       /*   std::map<Ipv6Address, RoutingTableEntry>::iterator tmp = i;
           ++i;
           m_ipv6AddressEntry.erase (tmp);
         }
       else
         {
           ++i;
-        }
+        }*/
     }
   
-  return foundEntry;
+  return false;
+}
+
+bool 
+RoutingTable::ActiveApEntries(RoutingTableEntry& entry)
+{
+  
+  NS_LOG_FUNCTION (this);
+  if (m_ipv6AddressEntry.empty ())
+    {
+      return false;
+    }
+ // bool foundEntry = false;
+  for (std::map<Ipv6Address, RoutingTableEntry>::iterator i =
+         m_ipv6AddressEntry.begin (); i != m_ipv6AddressEntry.end (); )
+    {
+      std::cout << "here" << std::endl;
+      if (i->second.IsAccessPoint () && i->second.GetFlag() == VALID)
+        {
+          Ptr<Ipv6Route> route = i->second.GetRoute();
+          std::cout << "route\ndst: " << route->GetDestination() << "\nsource: " << route->GetSource() << "\ngateway: " << route->GetGateway() << std::endl;
+          entry.SetRoute(i->second.GetRoute());
+
+          return true;
+        }
+        i++;
+       /*   std::map<Ipv6Address, RoutingTableEntry>::iterator tmp = i;
+          ++i;
+          m_ipv6AddressEntry.erase (tmp);
+        }
+      else
+        {
+          ++i;
+        }*/
+    }
+  
+  return false;
 }
 
 bool

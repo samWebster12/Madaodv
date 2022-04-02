@@ -500,11 +500,17 @@ private:
   /// Reset RERR count and schedule RERR rate limit timer with delay 1 sec.
   void RerrRateLimitTimerExpire ();
   /// Map IP address + RREQ timer.
+
   std::map<Ipv6Address, Timer> m_addressReqTimer;
   /**
    * Handle route discovery process
    * \param dst the destination IP address
    */
+
+   Timer m_associatedTimer;
+  //Check whether any of the devices are associated with an access point
+  void CheckAssociated (void);
+  
   void RouteRequestTimerExpire (Ipv6Address dst);
   /**
    * Mark link to neighbor node as unidirectional for blacklistTimeout

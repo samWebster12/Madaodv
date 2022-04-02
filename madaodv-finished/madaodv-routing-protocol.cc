@@ -48,6 +48,7 @@
 #include <limits>
 #include "ns3/output-stream-wrapper.h"
 #include "ns3/ndisc-cache.h"
+#include "hybrid-wifi-mac.h"
 
 namespace ns3 {
 
@@ -180,6 +181,7 @@ RoutingProtocol::RoutingProtocol ()
     m_htimer (Timer::CANCEL_ON_DESTROY),
     m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
     m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY),
+    m_associatedTimer (Timer::CANCEL_ON_DESTROY),
     m_lastBcastTime (Seconds (0)),
     m_amAccessPoint(false)
 {
@@ -420,7 +422,7 @@ RoutingProtocol::Start ()
   }*/
   //Assign node ipv6 address corresponding to mac address
   
-  Ptr<Node> node = this->GetObject <Node> ();
+  /*Ptr<Node> node = this->GetObject <Node> ();
   Ptr<Ipv6> ipv6 = node->GetObject<Ipv6> ();
   for (uint32_t j = 0; j < ipv6->GetNInterfaces(); j++) {
     for (uint32_t k = 0; k < ipv6->GetNAddresses(j); k++) {
@@ -430,7 +432,9 @@ RoutingProtocol::Start ()
         SetAmAccessPoint(true);
       }
     }
-  }
+  }*/
+
+  
 
   NS_LOG_FUNCTION (this);
   if (m_enableHello)
@@ -444,6 +448,9 @@ RoutingProtocol::Start ()
   m_rerrRateLimitTimer.SetFunction (&RoutingProtocol::RerrRateLimitTimerExpire,
                                     this);
   m_rerrRateLimitTimer.Schedule (Seconds (1));
+
+  m_associatedTimer.SetFunction(&RoutingProtocol::CheckAssociated, this);
+  m_associatedTimer.Schedule(Seconds(0.001));
   
 }
 
@@ -471,10 +478,10 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv6Header &header,
   RoutingTableEntry rt;
 
   Ptr<Node> node = m_ipv6->GetObject<Node> ();
-  //std::cout << "[node " << node->GetId() << "] " << Simulator::Now() << "\tsearching for destination " << dst << " in routing table: ";
+  std::cout << "[node " << node->GetId() << "] \tsearching for destination " << dst << " in routing table: ";
   if (m_routingTable.LookupValidRoute (dst, rt))
     {
-      //std::cout << "SUCCESSFUL" << std::endl;
+      std::cout << "SUCCESSFUL" << std::endl;
       route = rt.GetRoute ();
       NS_ASSERT (route != 0);
       NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface " << route->GetSource ());
@@ -490,11 +497,15 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv6Header &header,
       return route;
     }
 
-  std::vector<RoutingTableEntry> entries;
-  if (OnInternet(dst) && m_routingTable.ActiveApEntries(entries))
+  
+  else if (OnInternet(dst) && m_routingTable.ActiveApEntries(rt))
   {
-    //std::cout << "found an access point in the routing table!" << std::endl;
-    Ptr<Ipv6Route> route = entries.at(0).GetRoute();
+    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
+      PrintRoutingTable (routingStream, Time::Unit::S);
+    std::cout << "found an access point in the routing table!" << std::endl;
+    std::cout << "route\ndst: " << route->GetDestination() << "\nsource: " << route->GetSource() << "\ngateway: " << route->GetGateway() << std::endl;
+  //  std::cout << "route: " << entry.GetRoute() << std::endl;
+    //Ptr<Ipv6Route> route = entry.GetRoute();
 
     NS_ASSERT (route != 0);
     NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface " << route->GetSource ());
@@ -509,7 +520,7 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv6Header &header,
     UpdateRouteLifeTime (route->GetGateway (), m_activeRouteTimeout);
     return route;
   }
-//std::cout << "FAILURE" << std::endl;
+  std::cout << "FAILURE" << std::endl;
   // Valid route not found, in this case we return loopback.
   // Actual route request will be deferred until packet will be fully formed,
   // routed to loopback, received from loopback and passed to RouteInput (see below)
@@ -520,7 +531,6 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv6Header &header,
     {
       p->AddPacketTag (tag);
     }
-  //std::cout << "couldn't find access point, sending to loopback route" << std::endl;
   return LoopbackRoute (header, oif);
 }
 
@@ -551,6 +561,7 @@ RoutingProtocol::DeferredRouteOutput (Ptr<const Packet> p, const Ipv6Header & he
 
 
   bool result = m_queue.Enqueue (newEntry);
+  
   if (result)
     {
       NS_LOG_LOGIC ("Add packet " << p->GetUid () << " to queue. Protocol " << (uint16_t) header.GetNextHeader ());
@@ -558,9 +569,11 @@ RoutingProtocol::DeferredRouteOutput (Ptr<const Packet> p, const Ipv6Header & he
       
       
       bool result = m_routingTable.LookupRoute (searchingFor, rt);
+      std::cout << "result: " << (!result || ((rt.GetFlag () != IN_SEARCH) && result)) << std::endl;
       if (!result || ((rt.GetFlag () != IN_SEARCH) && result))
         {
           NS_LOG_LOGIC ("Send new RREQ for outbound packet to " << header.GetDestinationAddress ());
+          //std::cout << "defererd: " << header.GetDestinationAddress () << std::endl;
           SendRequest (header.GetDestinationAddress ());
         }
     }
@@ -805,13 +818,13 @@ RoutingProtocol::SetIpv6 (Ptr<Ipv6> ipv6)
 void
 RoutingProtocol::NotifyInterfaceUp (uint32_t i)
 {
+  
   NS_LOG_FUNCTION (this << m_ipv6->GetAddress (i, 0).GetAddress ());
   Ptr<Ipv6L3Protocol> l3 = m_ipv6->GetObject<Ipv6L3Protocol> ();
   if (l3->GetNAddresses (i) > 1)
     {
       NS_LOG_WARN ("MADAODV does not work with more then one address per each interface.");
     }
-
   Ptr<NetDevice> dev = l3->GetInterface(i)->GetDevice();
 
   bool found = false;
@@ -826,7 +839,7 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
   if (!found)
   {
     Ipv6Address addr = MacToIpv6 (Mac48Address::ConvertFrom(m_ipv6->GetNetDevice(i)->GetAddress()));
-    std::cout << "not found adding addr: " << addr << std::endl;
+    //std::cout << "not found adding addr: " << addr << std::endl;
     bool addrAlreadyAdded = false;
     for (uint8_t j = 0; j < m_ipv6->GetNAddresses(i); j++)
     {
@@ -871,6 +884,7 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
 
     mac->TraceConnectWithoutContext ("DroppedMpdu", MakeCallback (&RoutingProtocol::NotifyTxError, this));
   }
+ 
 
 }
 
@@ -942,11 +956,11 @@ RoutingProtocol::NotifyAddAddress (uint32_t i, Ipv6InterfaceAddress address)
   
   if (!InRange(address.GetAddress()))
   {
-    std::cout << "address " << address.GetAddress() << " not in range" << std::endl;
+    //std::cout << "address " << address.GetAddress() << " not in range" << std::endl;
     return;
   }
 
-  std::cout << "address " << address.GetAddress() << " in range" << std::endl;
+  //std::cout << "address " << address.GetAddress() << " in range" << std::endl;
 
   if (l3->GetNAddresses (i)) //mark for change later
     {
@@ -1147,7 +1161,7 @@ void
 RoutingProtocol::SendRequest (Ipv6Address dst)
 {
   NS_LOG_FUNCTION ( this << dst);
-  std::cout << "SendRequest for  " << dst << std::endl;
+  //std::cout << "SendRequest for  " << dst << std::endl;
 
   // A node SHOULD NOT originate more than RREQ_RATELIMIT RREQ messages per second.
   if (m_rreqCount == m_rreqRateLimit)
@@ -1169,8 +1183,9 @@ RoutingProtocol::SendRequest (Ipv6Address dst)
 
   if (OnInternet(dst))
   {
+    std::cout << "set access point query" << std::endl;
     rreqHeader.SetAccessPointQuery(true);
-    rtSearchFor = Ipv6Address("100::");
+   // rtSearchFor = Ipv6Address("100::");
   }
 
   RoutingTableEntry rt;
@@ -1220,6 +1235,9 @@ RoutingProtocol::SendRequest (Ipv6Address dst)
           newEntry.IncrementRreqCnt ();
         }
       newEntry.SetFlag (IN_SEARCH);
+
+      //Setting this means the destination needs an access point to be reached
+      newEntry.SetAccessPoint(true);
       m_routingTable.AddRoute (newEntry);
     }
 
@@ -1245,7 +1263,7 @@ RoutingProtocol::SendRequest (Ipv6Address dst)
       Ipv6InterfaceAddress iface = j->second;
 
       rreqHeader.SetOrigin (iface.GetAddress ());
-      std::cout << "set origin: " << iface.GetAddress() << std::endl;
+      //std::cout << "set origin: " << iface.GetAddress() << std::endl;
       m_rreqIdCache.IsDuplicate (iface.GetAddress (), m_requestId);
 
       Ptr<Packet> packet = Create<Packet> ();
@@ -1327,6 +1345,7 @@ RoutingProtocol::ScheduleRreqRetry (Ipv6Address dst)
   if (rt.GetHop () < m_netDiameter)
     {
       retry = 2 * m_nodeTraversalTime * (rt.GetHop () + m_timeoutBuffer);
+      std::cout << "retry: " << retry << std::endl;
     }
   else
     {
@@ -1475,8 +1494,9 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
   RreqHeader rreqHeader;
   p->RemoveHeader (rreqHeader);
 
+
   Ptr<Node> node = m_ipv6->GetObject<Node> ();
-  //std::cout << "[node " << node->GetId() << "] rreq received from " << src << " for " << rreqHeader.GetDst() << std::endl;
+  std::cout << "[node " << node->GetId() << "] rreq received from " << src << " for " << rreqHeader.GetDst() << std::endl;
 
   // A node ignores all RREQs received from any node in its blacklist
   RoutingTableEntry toPrev;
@@ -1565,7 +1585,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
 //Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
     //  PrintRoutingTable (routingStream, Time::Unit::S);
   RoutingTableEntry toNeighbor;
-  std::cout << "recieved from " << m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), m_addresses.at(m_ipv6->GetInterfaceForAddress (receiver))) << std::endl;
+  //std::cout << "recieved from " << m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), m_addresses.at(m_ipv6->GetInterfaceForAddress (receiver))) << std::endl;
   if (!m_routingTable.LookupRoute (src, toNeighbor))
     {
       NS_LOG_DEBUG ("Neighbor:" << src << " not found in routing table. Creating an entry");
@@ -1643,7 +1663,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
     //(iii) the rreq is in search of an access point and the node itself is an access point so send back RREP with Ap flag set
     if (rreqHeader.GetAccessPointQuery() && GetAmAccessPoint())
     {
-      std::cout << "[node " << node->GetId() << "] received a RREQ whos APQUERY flag was set an I am an access point" << std::endl;
+      //std::cout << "[node " << node->GetId() << "] received a RREQ whos APQUERY flag was set an I am an access point" << std::endl;
       //same code as case (i) but just seperated for show
       m_routingTable.LookupRoute (origin, toOrigin);
       NS_LOG_DEBUG ("Send reply since I am an access point");
@@ -1652,13 +1672,13 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
     }
 
     //(iiii) the rreq is in search of an access point and the node knows of an access point so back intermediate RREP with ap flag set
-    std::vector<RoutingTableEntry> entries;
-    if (rreqHeader.GetAccessPointQuery() && m_routingTable.ActiveApEntries(entries))
+    RoutingTableEntry entry;
+    if (rreqHeader.GetAccessPointQuery() && m_routingTable.ActiveApEntries(entry))
     {
       /*
        * Drop RREQ, This node RREP will make a loop.
        */
-      toDst = entries.at(0);
+      toDst = entry;
       if (toDst.GetNextHop () == src)
         {
           NS_LOG_DEBUG ("Drop RREQ from " << src << ", dest next hop " << toDst.GetNextHop ());
@@ -1683,7 +1703,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address s
           rreqHeader.SetUnknownSeqno (false);
         }
     }
-
+  
   SocketIpv6HopLimitTag tag;
   p->RemovePacketTag (tag);
   if (tag.GetHopLimit () < 2)
@@ -1732,7 +1752,7 @@ void
 RoutingProtocol::SendReply (RreqHeader const & rreqHeader, RoutingTableEntry const & toOrigin)
 {
   NS_LOG_FUNCTION (this << toOrigin.GetDestination ());
-  std::cout << "\n\nREPLYING\n\n";
+  //std::cout << "\n\nREPLYING\n\n";
   Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
   PrintRoutingTable (routingStream, Time::Unit::S);
   /*
@@ -1747,7 +1767,7 @@ RoutingProtocol::SendReply (RreqHeader const & rreqHeader, RoutingTableEntry con
                                           /*dstSeqNo=*/ m_seqNo, /*origin=*/ toOrigin.GetDestination (), /*lifeTime=*/ m_myRouteTimeout);
   if (GetAmAccessPoint())
   {
-    std::cout << "setting access point flag in RREP" << std::endl;
+    //std::cout << "setting access point flag in RREP" << std::endl;
     rrepHeader.SetAccessPoint(true);
 
     uint8_t iface = m_ipv6->GetInterfaceForDevice(toOrigin.GetOutputDevice());
@@ -1946,13 +1966,21 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address sen
       m_routingTable.AddRoute (newEntry);
     }
 
-  //if dst is accesspiont and theres a routing entry with address 100:: (general access point entry), replace it with this new one we have
-  RoutingTableEntry genAp;
-  if (rrepHeader.GetAccessPoint() && m_routingTable.LookupRoute(Ipv6Address("100::"), genAp))
+  //on receipt of rrep with ap flag set, tupdate all entries currently in search of an ap and set next hop to ap
+  RoutingTableEntry entry;
+  if (rrepHeader.GetAccessPoint())
   {
-    std::cout << "deleting genAp route" << std::endl;
-    m_routingTable.DeleteRoute(Ipv6Address("100::"));
+    while (m_routingTable.GetDestInSearchOfAp (entry))
+    {
+      RoutingTableEntry newEntry2 (/*device=*/ dev, /*dst=*/ entry.GetDestination(), /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
+                                          /*iface=*/ m_ipv6->GetAddress (m_ipv6->GetInterfaceForAddress (receiver), m_addresses.at(m_ipv6->GetInterfaceForAddress (receiver))
+                                          ),/*hop=*/ hop,
+                                          /*nextHop=*/ dst, /*lifeTime=*/ rrepHeader.GetLifeTime ());
+
+      m_routingTable.Update(newEntry2);
+    }
   }
+
 
 
   // Acknowledge receipt of the RREP by sending a RREP-ACK message back
@@ -1982,6 +2010,7 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv6Address receiver, Ipv6Address sen
 
     //  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> (&std::cout);
     //  PrintRoutingTable (routingStream, Time::Unit::S);
+      
       SendPacketFromQueue (dst, toDst.GetRoute ());
       return;
     }
@@ -2338,8 +2367,8 @@ RoutingProtocol::SendHello ()
 void
 RoutingProtocol::SendApPacketsFromQueue (Ptr<Ipv6Route> route)
 {
-  std::cout << "sending out ap packets from queue" << std::endl;
-  std::cout << "route: \ndestination: " << route->GetDestination() << "\nGateway: " << route->GetGateway() << "\nSource: " << route->GetSource() << "\nGateway: " << route->GetGateway() << std::endl;
+  //std::cout << "sending out ap packets from queue" << std::endl;
+  //std::cout << "route: \ndestination: " << route->GetDestination() << "\nGateway: " << route->GetGateway() << "\nSource: " << route->GetSource() << "\nGateway: " << route->GetGateway() << std::endl;
   NS_LOG_FUNCTION (this);
   QueueEntry queueEntry;
   while (m_queue.DequeueApQuery (queueEntry))
@@ -2358,7 +2387,6 @@ RoutingProtocol::SendApPacketsFromQueue (Ptr<Ipv6Route> route)
       Ipv6Header header = queueEntry.GetIpv6Header ();
       header.SetSourceAddress (route->GetSource ());
       header.SetHopLimit (header.GetHopLimit () + 1); // compensate extra TTL decrement by fake loopback routing
-
 
       header.SetDestinationAddress(route->GetDestination()); //mark we gotta make it so the original destination addrss is preserved someway
       
@@ -2630,6 +2658,46 @@ RoutingProtocol::DoInitialize (void)
     }
 
   Ipv6RoutingProtocol::DoInitialize ();
+}
+
+void
+RoutingProtocol::CheckAssociated ()
+{
+  Ptr<Ipv6L3Protocol> l3 = m_ipv6->GetObject<Ipv6L3Protocol> ();
+  for (uint32_t i = 0; i < l3->GetNInterfaces (); i++)
+  {
+    Ptr<NetDevice> dev = l3->GetInterface(i)->GetDevice();
+    Ptr<WifiNetDevice> wifi = dev->GetObject<WifiNetDevice> ();
+
+    if (wifi == 0)
+      {
+        continue;
+      }
+
+    Ptr<WifiMac> mac = wifi->GetMac ();
+    Ptr<HybridWifiMac> hybrid = mac->GetObject<HybridWifiMac> ();
+Ptr<Node> node = this->GetObject<Node> ();
+    if (hybrid == 0)
+      {
+     //   std::cout << "[node " << node->GetId() << "] not hybrid" << std::endl;
+        continue;
+      }
+    
+    if (hybrid->IsAssociated())
+    {
+      Ptr<Node> node = this->GetObject<Node> ();
+   //  std::cout << "[node " << node->GetId() << "] set associated" << std::endl;
+      SetAmAccessPoint(true);
+      m_associatedTimer.SetFunction(&RoutingProtocol::CheckAssociated, this);
+      m_associatedTimer.Schedule(Seconds(0.01));
+      return;
+    }
+  }
+  Ptr<Node> node = this->GetObject<Node> ();
+ // std::cout << "[node " << node->GetId() << "] set not associated" << std::endl;
+  SetAmAccessPoint(false);
+  m_associatedTimer.SetFunction(&RoutingProtocol::CheckAssociated, this);
+  m_associatedTimer.Schedule(Seconds(0.01));
 }
 
 } //namespace madaodv
