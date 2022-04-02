@@ -312,7 +312,6 @@ TrafficControlLayer::Receive (Ptr<NetDevice> device, Ptr<const Packet> p,
                               uint16_t protocol, const Address &from, const Address &to,
                               NetDevice::PacketType packetType)
 {
- // std::cout << "node " << m_node->GetId() << " traffic controller receive packet " << p->GetUid() << std::endl;
   NS_LOG_FUNCTION (this << device << p << protocol << from << to << packetType);
 
   bool found = false;
